@@ -115,14 +115,15 @@ class ATACRegModel(nn.Module):
 
     def _run_dynamics(self, c, times, test=False):
         
+        device = th.device('cuda') if th.cuda.is_available() else th.device('cpu')
         # set initial state
         h0 = self.initial(th.zeros_like(c[:,0][:,None]))
-        h0 = th.cat((h0, th.zeros(c.shape[0], self.h_dim).cuda(), c), dim=-1)
+        h0 = th.cat((h0, th.zeros(c.shape[0], self.h_dim).to(device), c), dim=-1)
         
         if test:
-            ht_full = odeint(self.velocity_field, h0, th.cat((th.zeros(1).cuda(), times), dim=-1), method='dopri8', options=dict(max_num_steps=self.num_steps)).permute(1,0,2) #
+            ht_full = odeint(self.velocity_field, h0, th.cat((th.zeros(1).to(device), times), dim=-1), method='dopri8', options=dict(max_num_steps=self.num_steps)).permute(1,0,2) #
         else:
-            ht_full = odeint(self.velocity_field, h0, th.cat((th.zeros(1).cuda(), times), dim=-1), method='dopri5',rtol=1e-5, atol=1e-5, options=dict(max_num_steps=self.num_steps)).permute(1,0,2) #
+            ht_full = odeint(self.velocity_field, h0, th.cat((th.zeros(1).to(device), times), dim=-1), method='dopri5',rtol=1e-5, atol=1e-5, options=dict(max_num_steps=self.num_steps)).permute(1,0,2) #
         ht_full = ht_full[:,1:]
         
         ht = ht_full[...,:3*self.latent+self.zr_dim]
@@ -132,12 +133,13 @@ class ATACRegModel(nn.Module):
     
     def loss(self, normed_s, s, s_size_factor, mask_s, normed_u, u, u_size_factor, mask_u, normed_a, velo_genes_mask, adj, root_cells, batch_id = None, epoch = None):
       
+        device = th.device('cuda') if th.cuda.is_available() else th.device('cpu')
         latent_state, latent_mean, latent_logvar, latent_time, time_mean, time_logvar = self.latent_embedding(normed_s, normed_u, normed_a, adj, batch_id = batch_id)
         
         z = latent_state[:,:self.latent*3]
         c = latent_state[:,self.latent*3:]
         
-        orig_index = th.arange(normed_s.shape[0]).cuda()
+        orig_index = th.arange(normed_s.shape[0]).to(device)
 
         # get unique time indices for solver
         sort_index, index = unique_index(latent_time)
@@ -303,10 +305,11 @@ class ATACRegModel(nn.Module):
     
     def reconstruct(self, normed_s, normed_u, size_factor, adj):
         
+        device = th.device('cuda') if th.cuda.is_available() else th.device('cpu')
         z, c, latent_time = self.latent_embedding(normed_s, normed_u, adj)
         
         unique_times, inverse_indices = th.unique(latent_time, return_inverse=True, sorted=True)
-        unique_times = th.cat((th.zeros(1).cuda(), unique_times), dim=-1)
+        unique_times = th.cat((th.zeros(1).to(device), unique_times), dim=-1)
         
         # run dynamics
         ht, ct, h0 = self._run_dynamics(c, latent_time)
@@ -400,8 +403,9 @@ class ATACRegModel(nn.Module):
         c = latent_state[:,self.latent*2:]
         
         unique_times, inverse_indices = th.unique(latent_time, return_inverse=True, sorted=True)
+        device = th.device('cuda') if th.cuda.is_available() else th.device('cpu')
 
-        times = th.linspace(0, unique_times.max(), 25).cuda()
+        times = th.linspace(0, unique_times.max(), 25).to(device)
         # run dynamics
         ht, ct, h0 = self._run_dynamics(c, times[1:], test=True)
         zs, zu, za = ht[...,:self.latent], ht[..., self.latent:2*self.latent], ht[..., 2*self.latent:2*self.latent+self.latent]
@@ -449,7 +453,8 @@ class ATACRegModel(nn.Module):
           elif input.shape[0] != input.shape[1]:
             inputs_i.append(input[i-split_size:i])
           else:
-            inputs_i.append(sparse_mx_to_torch_sparse_tensor(normalize(input[i-split_size:i, i-split_size:i])).cuda())
+            device = th.device('cuda') if th.cuda.is_available() else th.device('cpu')
+            inputs_i.append(sparse_mx_to_torch_sparse_tensor(normalize(input[i-split_size:i, i-split_size:i])).to(device))
         
         outputs_i = func(*inputs_i)
         if type(outputs_i) != tuple:

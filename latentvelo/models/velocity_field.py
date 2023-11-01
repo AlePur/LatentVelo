@@ -42,6 +42,7 @@ class VelocityFieldReg(nn.Module):
                 nn.init.constant_(m.bias, val=0.0)
     
     def forward(self, t, z):
+        device = th.device('cuda') if th.cuda.is_available() else th.device('cpu')
         t = t.repeat(z.shape[0], 1)
         
         zs, zu, zr, h = z[:,:self.latent], z[:,self.latent:2*self.latent], z[:,2*self.latent:2*self.latent+self.zr_dim], z[:,2*self.latent+self.zr_dim:]
@@ -55,7 +56,7 @@ class VelocityFieldReg(nn.Module):
         reg_drift = self.reg_net(th.cat((zs, zr, h), dim=-1))
         
         return th.cat((spliced_drift, unspliced_drift, reg_drift,
-                       th.zeros(spliced_drift.shape[0], self.h_dim).cuda()), dim=-1)
+                       th.zeros(spliced_drift.shape[0], self.h_dim).to(device)), dim=-1)
     
     def drift(self, z):
         
@@ -115,6 +116,7 @@ class ATACRegVelocityField(nn.Module):
                 
         
     def forward(self, t, z):
+        device = th.device('cuda') if th.cuda.is_available() else th.device('cpu')
         t = t.repeat(z.shape[0], 1)
         
         zs, zu, za, zr, h = z[:,:self.latent], z[:,self.latent:2*self.latent], z[:,2*self.latent:2*self.latent+self.latent], z[:,3*self.latent:3*self.latent+self.zr_dim], z[:,3*self.latent+self.zr_dim:3*self.latent+self.zr_dim+self.h_dim]
@@ -133,7 +135,7 @@ class ATACRegVelocityField(nn.Module):
         reg_drift = self.reg_net(th.cat((zs, zr, h), dim=-1))
         
         return th.cat((spliced_drift, unspliced_drift, atac_drift, reg_drift,
-                       th.zeros(spliced_drift.shape[0], self.h_dim).cuda()), dim=-1)
+                       th.zeros(spliced_drift.shape[0], self.h_dim).to(device)), dim=-1)
     
     def drift(self, z):
         

@@ -647,7 +647,8 @@ def batch_func(func, inputs, num_outputs, split_size = 500):
             elif input.shape[0] != input.shape[1]:
                 inputs_i.append(input[i-split_size:i])
             else:
-                inputs_i.append(sparse_mx_to_torch_sparse_tensor(normalize(input[i-split_size:i, i-split_size:i])).cuda())
+                device = th.device('cuda') if th.cuda.is_available() else th.device('cpu')
+                inputs_i.append(sparse_mx_to_torch_sparse_tensor(normalize(input[i-split_size:i, i-split_size:i])).to(device))
             
         outputs_i = func(*inputs_i)
         if type(outputs_i) != tuple:

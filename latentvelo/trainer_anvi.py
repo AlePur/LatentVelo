@@ -50,7 +50,9 @@ def train_anvi(model, adata, epochs = 50, learning_rate = 1e-2, batch_size = 200
                                      shuffle = True, drop_last = False,
                                      num_workers = 0, pin_memory=True,
                                       collate_fn=lambda x: x[0])
-    model = model.cuda()
+    device = th.device('cuda') if th.cuda.is_available() else th.device('cpu')
+    model = model.to(device)
+
     model_state_history = [model.state_dict()]
     epoch_history = [0]
     val_ae_history = [np.inf]
@@ -71,39 +73,39 @@ def train_anvi(model, adata, epochs = 50, learning_rate = 1e-2, batch_size = 200
             
             optimizer.zero_grad()
             
-            s = batch[s_count_key].cuda()
-            normed_s = batch['normedS'].cuda()
-            mask_s = batch['maskS'].cuda()
-            s_size_factors = batch['spliced_size_factor'].cuda()[:,None]
+            s = batch[s_count_key].to(device)
+            normed_s = batch['normedS'].to(device)
+            mask_s = batch['maskS'].to(device)
+            s_size_factors = batch['spliced_size_factor'].to(device)[:,None]
             
-            u = batch[u_count_key].cuda()
-            normed_u = batch['normedU'].cuda()
-            mask_u = batch['maskU'].cuda()
-            u_size_factors = batch['unspliced_size_factor'].cuda()[:,None]  
+            u = batch[u_count_key].to(device)
+            normed_u = batch['normedU'].to(device)
+            mask_u = batch['maskU'].to(device)
+            u_size_factors = batch['unspliced_size_factor'].to(device)[:,None]  
 
-            velo_genes_mask = batch['velo_genes_mask'].cuda()
+            velo_genes_mask = batch['velo_genes_mask'].to(device)
             
-            root_cells = batch['root'].cuda()
+            root_cells = batch['root'].to(device)
             
-            obs_celltype = batch['celltype'].cuda()
+            obs_celltype = batch['celltype'].to(device)
 
-            celltype_id = batch['celltype_id'].cuda()
+            celltype_id = batch['celltype_id'].to(device)
             
             if model.exp_time:
-                exp_time = batch['exp_time'].cuda()[:,None]
+                exp_time = batch['exp_time'].to(device)[:,None]
                 obs_celltype = (obs_celltype, exp_time, celltype_id)
             else:
                 obs_celltype = (obs_celltype, None, celltype_id)
             
-            index_train, index_test = batch['index_train'].cuda(), batch['index_test'].cuda()
+            index_train, index_test = batch['index_train'].to(device), batch['index_test'].to(device)
             
-            adj = sparse_mx_to_torch_sparse_tensor(batch['adj']).cuda()
+            adj = sparse_mx_to_torch_sparse_tensor(batch['adj']).to(device)
             if batch_correction:
-                batch_id = batch['batch_id'].cuda()[:,None]
-                batch_onehot = batch['batch_onehot'].cuda()
+                batch_id = batch['batch_id'].to(device)[:,None]
+                batch_onehot = batch['batch_onehot'].to(device)
             loss, validation_ae, validation_traj, validation_velo, orig_index = model.loss(normed_s, s, s_size_factors, mask_s, normed_u, u, u_size_factors, mask_u, velo_genes_mask, adj, root_cells, obs_celltype, batch_id=(batch_id, batch_onehot), epoch=epoch)
             
-            curr_index = th.arange(loss.shape[0]).cuda()
+            curr_index = th.arange(loss.shape[0]).to(device)
             index_train = th.stack([i for i in curr_index if orig_index[i] in index_train])
             
             train_loss = th.mean(loss[index_train])
@@ -113,7 +115,7 @@ def train_anvi(model, adata, epochs = 50, learning_rate = 1e-2, batch_size = 200
                 index_test = th.stack(index_test_)
                 vloss = loss.detach()[index_test]
             else:
-                vloss = th.zeros(1).cuda()
+                vloss = th.zeros(1).to(device)
             
             val_loss += th.sum(vloss)
             val_num += vloss.shape[0]
@@ -127,38 +129,38 @@ def train_anvi(model, adata, epochs = 50, learning_rate = 1e-2, batch_size = 200
             
             adata = dataset.adata
             if model.likelihood_model == 'gaussian':
-                s = th.Tensor(adata.layers['spliced'].astype(float)).cuda()
-                u = th.Tensor(adata.layers['unspliced'].astype(float)).cuda()
+                s = th.Tensor(adata.layers['spliced'].astype(float)).to(device)
+                u = th.Tensor(adata.layers['unspliced'].astype(float)).to(device)
             else:
-                s = th.Tensor(adata.layers['spliced_counts'].astype(float)).cuda()
-                u = th.Tensor(adata.layers['unspliced_counts'].astype(float)).cuda()
+                s = th.Tensor(adata.layers['spliced_counts'].astype(float)).to(device)
+                u = th.Tensor(adata.layers['unspliced_counts'].astype(float)).to(device)
             
-            normed_s = th.Tensor(adata.layers['spliced'].astype(float)).cuda()
-            normed_u = th.Tensor(adata.layers['unspliced'].astype(float)).cuda()
+            normed_s = th.Tensor(adata.layers['spliced'].astype(float)).to(device)
+            normed_u = th.Tensor(adata.layers['unspliced'].astype(float)).to(device)
             
-            s_size_factors = th.Tensor(adata.obs['spliced_size_factor'].astype(float)).cuda()[:,None]
-            u_size_factors = th.Tensor(adata.obs['unspliced_size_factor'].astype(float)).cuda()[:,None]
+            s_size_factors = th.Tensor(adata.obs['spliced_size_factor'].astype(float)).to(device)[:,None]
+            u_size_factors = th.Tensor(adata.obs['unspliced_size_factor'].astype(float)).to(device)[:,None]
 
-            mask_s = th.Tensor(adata.layers['mask_spliced'].astype(float)).cuda()
-            mask_u = th.Tensor(adata.layers['mask_unspliced'].astype(float)).cuda()
+            mask_s = th.Tensor(adata.layers['mask_spliced'].astype(float)).to(device)
+            mask_u = th.Tensor(adata.layers['mask_unspliced'].astype(float)).to(device)
 
-            velo_genes_mask = th.Tensor(adata.layers['velo_genes_mask'].astype(float)).cuda()
+            velo_genes_mask = th.Tensor(adata.layers['velo_genes_mask'].astype(float)).to(device)
             
-            root_cells = th.Tensor(adata.obs['root'].astype(float)).cuda()[:,None]
+            root_cells = th.Tensor(adata.obs['root'].astype(float)).to(device)[:,None]
 
-            obs_celltype = th.Tensor(adata.obsm['celltype']).cuda()
-            celltype_id = th.Tensor(adata.obs['celltype_id']).cuda()
+            obs_celltype = th.Tensor(adata.obsm['celltype']).to(device)
+            celltype_id = th.Tensor(adata.obs['celltype_id']).to(device)
             
             if model.exp_time:
-                exp_time = th.Tensor(adata.obs['exp_time']).cuda()[:,None]
+                exp_time = th.Tensor(adata.obs['exp_time']).to(device)[:,None]
                 obs_celltype = (obs_celltype, exp_time, celltype_id)
             else:
                 obs_celltype = (obs_celltype, None, celltype_id)
             
             adj = adata.obsp['adj']
             if batch_correction:
-                batch_id = th.Tensor(adata.obs['batch_id']).cuda()[:,None]
-                batch_onehot = th.Tensor(adata.obsm['batch_onehot']).cuda()
+                batch_id = th.Tensor(adata.obs['batch_id']).to(device)[:,None]
+                batch_onehot = th.Tensor(adata.obsm['batch_onehot']).to(device)
             loss, validation_ae, validation_traj, validation_velo, _ = batch_func(model.loss, (normed_s, s, s_size_factors, mask_s, normed_u, u, u_size_factors, mask_u, velo_genes_mask, adj, root_cells, obs_celltype, (batch_id, batch_onehot)), 5, split_size = batch_size)
 
             loss = loss.mean().cpu().numpy()
