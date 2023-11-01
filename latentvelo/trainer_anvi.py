@@ -191,7 +191,7 @@ def train_anvi(model, adata, epochs = 50, learning_rate = 1e-2, batch_size = 200
     best_index = np.argmin(val_history)
 
     print('Loading best model at %d epochs.'%epoch_history[best_index])
-    model.load_state_dict(th.load(results_folder+'model_state_epoch%d.params'%epoch_history[best_index], map_location=th.device('cuda')))
+    model.load_state_dict(th.load(results_folder+'model_state_epoch%d.params'%epoch_history[best_index], map_location=device))
     return np.array(epoch_history)[1:], np.array(val_ae_history)[1:], np.array(val_traj_history)[1:]
 
 def plot_history(epochs, val_traj, val_ae):
