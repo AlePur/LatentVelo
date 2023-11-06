@@ -83,7 +83,7 @@ def paired_correlation_numpy(x, y, axis=1):
     
 def standard_clean_recipe(adata, spliced_key = 'spliced', unspliced_key = 'unspliced', batch_key = None, root_cells = None, terminal_cells = None,
                           normalize_library=True, n_top_genes = 2000, n_neighbors=30, smooth = True, umap=False, log=True, r2_adjust=True, share_normalization=False, center=False, celltype_key=None,
-                          bknn=False, retain_genes = None):
+                          bknn=False, retain_genes = None, skip_pca = False, custom_pcs = 30):
 
     """
     Clean and setup data for LatentVelo
@@ -152,8 +152,11 @@ def standard_clean_recipe(adata, spliced_key = 'spliced', unspliced_key = 'unspl
     if log:
         scv.pp.log1p(adata)
     
-    sc.pp.pca(adata)
-    
+    if skip_pca == False:
+        sc.pp.pca(adata)
+    else:
+        print('Skipping PCA. Assuming X_pca exists on obsm')
+
     adata.layers['spliced'] = adata.layers[spliced_key]
     adata.layers['unspliced'] = adata.layers[unspliced_key]
 
@@ -161,7 +164,7 @@ def standard_clean_recipe(adata, spliced_key = 'spliced', unspliced_key = 'unspl
         import scanpy.external as sce
         sce.pp.bbknn(adata, batch_key=batch_key, local_connectivity=6)
     else:
-        scv.pp.neighbors(adata, n_pcs=30, n_neighbors=n_neighbors)
+        scv.pp.neighbors(adata, n_pcs=custom_pcs, n_neighbors=n_neighbors)
     scv.pp.moments(adata, n_pcs=None, n_neighbors=None)
     adata.obsp['adj'] = adata.obsp['connectivities']
     
